@@ -1,0 +1,37 @@
+---
+title: "Métodos Paramétricos y No Paramétricos"
+author: "Javier Adanaqué"
+date: "March 31, 2017"
+output:
+  pdf_document:
+    df_print: kable
+abstract: "Se muestran los gráficos aprendidos en clase usando data salarial en un contexto académico. Se agregan algunas conclusiones básicas basadas en los gráficos con el único objetivo de darle sentido a los gráficos, sin intentar ser exhaustivos al respecto."
+fontsize: 12pt
+classoption: "a4paper"
+
+header-includes:
+- \usepackage[spanish]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(dplyr)
+```
+
+# Introducción
+
+El objetivo del presente artículo es mostrar los gráficos aprendidos en clase. Para ello se está usando la data de salarios otorgada en clase junto a otros datasets.
+
+Exploraremos los datos gráficamente, mostrando el código usado para llegar a ellos.
+
+Cabe recalcar que de ninguna manera se pretende ser exhaustivo con el análisis o conclusiones, sólo se busca replicar los gráficos y aprender de ellos.
+
+# Data
+
+Para trabajar los gráficos, se está usando la data `SALARIOS.txt`, ubicada entre los datasets
+distribuidos para la clase.
+
+```{r data}
+salarios <- read.table("data/SALARIOS.txt", header = T)
+head(salarios)
+```
