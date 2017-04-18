@@ -1,0 +1,213 @@
+---
+title: "Regresión Lineal Simple y Múltiple"
+author: "Javier Adanaqué"
+date: "08 de Abril, 2017"
+output:
+  pdf_document:
+    df_print: kable
+abstract: "Se analiza cómo se relaciona el valor de las viviendas en Boston frente a características tanto de las viviendas como de la población en general en donde se encuentran las viviendas."
+fontsize: 12pt
+classoption: "a4paper"
+
+header-includes:
+- \usepackage[spanish]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+#library(MASS)  # The Boston dataframe is the same as the one given in class
+```
+
+# Introducción
+
+El objetivo del presente documento es aplicar los métodos de Regresión Lineal Simple y Múltiple aprendidos en clase. Para ello se está usando una base de datos con diferentes características de las viviendas y suburbios/ciudades en Boston, data otorgada en clase junto a otros datasets.
+
+Primero se realizará una exploración rápida de las variables y luego se contruirá el modelo, mostrando el código usado para llegar a ellos.
+
+Nos concentraremos en conocer cómo se relaciona el valor de las viviendas en Boston con respecto a diferentes características de los suburbios en las que se encuentran. Esto sería de mucha utilidad para alguna empresa constructora, para autoridades gubernamentales o para los ciudadanos que se encuentren evaluando comprar o vender una vivienda.
+
+# Data
+
+Para el análisis se está usando la data `base_crimen.sav`, ubicada entre los datasets
+distribuidos para la clase.
+
+```{r data, warning=FALSE}
+library(foreign)
+valor_viviendas <- read.spss("data/base_crimen.sav", to.data.frame = TRUE)
+valor_viviendas[1:6, c(1:3, 6, 7, 10, 13, 14)]
+```
+
+Como se puede observar en las primeras seis observaciones (y algunas columnas), nos muestra diferentes características sobre los suburbios, incluido el valor medio de las viviendas en el suburbio (ver última columna).
+
+Descripción de variables:
+
+- `crim`: tasa de delincuencia per cápita por ciudad.
+- `zn`: proporción de suelo residencial dividido en zonas para lotes de más de 25,000 pies cuadrados.
+- `indus`: proporción de acres de negocios no minoristas por la ciudad.
+- `chas`: variable ficticia (dummy) Charles River (1 si sale de las vías fluviales; 0 en caso contrario).
+- `nox`: concentración de óxidos de nitrógeno (partes por 10 millones).
+- `rm`: número promedio de habitaciones por vivienda.
+- `edad`: proporción de unidades ocupadas por sus propietarios construidas antes de 1940.
+- `dis`: media ponderada de las distancias a cinco centros de empleo de Boston.
+- `rad`: Índice de la accesibilidad a las autopistas radiales.
+- `impuesto`: tasa de impuestos a la propiedad por el valor total por \$ 10.000.
+- `ptratio`: proporción de alumnos por profesor por ciudad.
+- `negro`: 1000(Bk - 0,63)2, donde Bk es la proporción de negros por la ciudad.
+- `lstat`: estatus más bajo de la población (por ciento).
+- `medv`: valor mediano de las viviendas ocupadas por sus propietarios en \$ 1000s.
+
+# Análisis exploratorio
+
+A continuación exploraremos algunas variables que parecen relevantes para el valor de las viviendas en Boston. Empezaremos explorando nuestra variable que queremos explicar, `medv`:
+
+```{r hist_medv, fig.cap="Histograma del Valor Medio de las Viviendas en Boston", echo=FALSE, warning=FALSE, message=FALSE, fig.height=3.2, fig.width=5}
+ggplot(valor_viviendas, aes(medv)) + geom_histogram(colour = "white") +
+  labs(title = 'Distribución del Valor Medio de las Viviendas') +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+\newpage
+
+Ahora un vistazo a un par de variables más:
+
+```{r hist_predictors, fig.cap="Histograma del Número de Habitaciones y Porcentaje de Personas en Estatus Más Bajo", echo=FALSE, warning=FALSE, message=FALSE}
+rooms_hist <- ggplot(valor_viviendas, aes(rm)) + geom_histogram(colour = "white") +
+                labs(title = 'Número de Habitaciones por Vivienda') +
+                theme(plot.title = element_text(hjust = 0.5, size = 10, face = "bold"))
+
+lstat_hist <- ggplot(valor_viviendas, aes(lstat)) + geom_histogram(colour = "white") +
+                labs(title = 'Porcentaje de Personas en Estatus Más Bajo') +
+                theme(plot.title = element_text(hjust = 0.5, size = 10, face = "bold"))
+grid.arrange(rooms_hist, lstat_hist, ncol=2)
+```
+
+Finalmente, veamos cómo se relaciona nuestra variable de interés, `medv`, con respecto a estas dos variables mostradas:
+
+```{r scatter_predictors, fig.cap="Diagramas de Dispersión. Izquierda: Valor Mediano de las Viendas con respecto al Número de Habitaciones. Derecha: Valor Mediano de las viviendas con respecto al Porcentaje de Personas en Estatus Más Bajo", echo=FALSE, warning=FALSE, message=FALSE}
+scatter_rm <- ggplot(valor_viviendas, aes(rm, medv)) + geom_point() +
+                theme(plot.title = element_text(hjust = 0.5, size = 10, face = "bold"))
+
+scatter_lstat <- ggplot(valor_viviendas, aes(lstat, medv)) + geom_point() +
+                theme(plot.title = element_text(hjust = 0.5, size = 10, face = "bold"))
+
+grid.arrange(scatter_rm, scatter_lstat, ncol=2)
+```
+
+Claramente, existe una relación entre estas variables, positiva con respecto al número de habitaciones y negativa con respecto al porcentaje de la población en el estatus más bajo.
+
+\newpage
+
+# Modelamiento
+
+## Regresión Lineal Simple
+
+En los últimos gráficos de dispersión observamos que existe cierta relación entre el valor de las viviendas en Boston y el número promedio de habitaciones y porcentaje de población en el estatus más bajo.
+
+Ahora, elaboremos un modelo de Regresión Lineal Simple con alguna de las variables. Existen varios métodos para seleccionar las variables más explicativas; sin embargo, en este análisis seleccionaremos sólo una variable a priori, el **Número de Habitaciones Promedio**.
+
+```{r simple_lm}
+lm_viviendas <- lm(medv ~ rm, data = valor_viviendas)
+summary(lm_viviendas)
+```
+
+Una de las primeras cosas que podemos observar es nuestro coeficiente de determinación ajustado, $R^{2}_{ajustado}$, que no está mal considerando que sólo hemos seleccionado una variable entre todas las que podrían explicar los precios de las viviendas. Este número nos está diciendo que alrededor del 48% de la variabilidad en los precios de las viviendas está explicada por el número de habitaciones.
+
+Otro valor muy importante es el `p-value` de nuestro modelo, $<2.2e^{-16}$, lo cual nos dice que nuestro modelo es significativo.
+
+Finalmente, pero no menos importante, debemos prestar atención a lo significativo de nuestros coeficiente e intercepto. En este caso, ambos son significativos, también con un valor menor a $2.2e^{-16}$.
+
+Con esto, nuestro modelo resultante queda de la siguiente manera:
+
+$$\hat{medv} = -34.671 + 9.102rm$$
+El $9.102$ es la pendiente, que nos está diciendo que por cada habitación extra el precio (mediano) de las viviendas incrementa en $\$ 9,102$.
+
+El $-34.671$ es el intercepto, que nos dice cuál es precio (mediano) de las viviendas, cuando estas no tienen ninguna habitación. En este caso, un valor negativo pareciera con poco sentido, pero si nos fijamos bien en nuestra variable `rm`, el valor mínimo de esta es de alrededor de 4, por lo que el valor **inicial** estimado de una vivienda sería de alrededor de $`r (-34.671 + 9.102*4)*1000`. Otra forma de interpretar este intercepto negativo es que nadie estaría dispuesto a pagar por una vivienda con pocas habitaciones (e.g., de 1 a 3 habitaciones).
+
+Ahora observemos, gráficamente, cómo quedó nuestro modelo:
+
+```{r scatter_rm, echo=FALSE, fig.cap="Diagrama de Dispersión y el modelo ajustado (línea azul)", fig.height=4, fig.width=5.2}
+ggplot(valor_viviendas, aes(rm, medv)) + geom_point() + geom_smooth(method = "lm", se = FALSE)
+```
+
+Para acabar, revisemos algunos residuos:
+
+```{r residuos}
+residuos_df <- data.frame(medv = valor_viviendas$medv[c(1, 6, 200, 420)],
+                          medv_estimado = -34.671 + 9.102*valor_viviendas$rm[c(1, 6, 200, 420)])
+residuos_df$residuos <- residuos_df$medv - residuos_df$medv_estimado
+residuos_df
+```
+
+Ahora, revisemos todos los residuos:
+
+```{r residuals_distribution, fig.cap="Histograma de los Residuos del Modelo", echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(lm_viviendas, aes(lm_viviendas$residuals)) +
+    geom_histogram(bins = 40, colour = "white") +
+    labs(title = "Distribución de los Residuos del Modelo",
+         x = "Residuos", y = "Frecuencia") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Regresión Lineal Múltiple
+
+Ahora extenderemos el modelo analizado en la sección anterior usando una variable adicional que nos permita explicar mejor el precio de las viviendas en Boston.
+
+Usaremos `lstat` como nuestra segunda variable predictora. Recordando que esta variable nos da la proporción de personas en el estatus más bajo de la población, tiene sentido saber si una mayor proporción de personas pobres influye en el precio de las viviendas; una hipótesis inicial podría ser que sí, que una mayor proporción de personas pobres afectaría negativamente en el valor de las viviendas.
+
+Contruyamos el modelo para ver si nuestra hipótesis es cierta y qué tanto nos ayuda a explicar el precio de las viviendas:
+
+```{r}
+lm_mult_viviendas <- lm(medv ~ rm + lstat, data = valor_viviendas)
+summary(lm_mult_viviendas)
+```
+
+Aparentemente, sí nos ayuda a explicar mejor el precio de las viviendas (ver $R^{2}_{ajustado}$); sin embargo, también nos podemos dar cuenta de que, según el resumen de nuestro modelo, el intercepto es no significativo.
+
+Dado que el intercepto no es significativo, procedemos con eliminarlo de nuestro modelo.
+
+```{r}
+lm_mult_viviendas <- lm(medv ~ rm + lstat - 1, data = valor_viviendas)
+summary(lm_mult_viviendas)
+```
+
+Nos damos cuenta de que, efectivamente, eliminar el intercepto mejora considerablemente nuestro modelo. Ahora tenemos un $R^{2}_{ajustado}$ de 0.9482, indicando que nuestras variables predictoras elegidas explican casi el 95% de la variabilidad en los precios de las viviendas en Boston.
+
+También nos damos cuenta de que tanto nuestro modelo como los coeficientes son altamente significativos, con un p-valor menor que $2.2e^{-16}$.
+
+Con esto, nuestro modelo resultante queda de la siguiente manera:
+
+$$\hat{medv} = 4.907rm - 0.656lstat$$
+Nos damos cuenta de que, efectivamente, `lstat` aporta negativamente a los precios de las viviendas. Cada punto porcentual adicional disminuye el precio estimado de las viviendas en $-0.656$ ($\$-656$).
+
+Así mismo, nos podemos dar cuenta de que el peso que tiene el número de habitaciones en el precio de las viviendas es menor que el que tenía en nuestro modelo de Regresión Lineal Simple. Ahora, por cada habitación extra el precio (mediano) de las viviendas incrementa en $4.907$ ($\$ 4,907$). Tiene sentido ahora que no tenemos el intercepto y que tenemos una variable adicional en el modelo (con valor negativo).
+
+Nuevamente, para acabar, revisemos primero algunos residuos y luego todos:
+
+```{r residuos2}
+residuos_df2 <- data.frame(medv = valor_viviendas$medv[c(1, 6, 200, 420)],
+                          medv_estimado = 4.907*valor_viviendas$rm[c(1, 6, 200, 420)] -
+                                          0.656*valor_viviendas$lstat[c(1, 6, 200, 420)])
+residuos_df2$residuos <- residuos_df2$medv - residuos_df2$medv_estimado
+residuos_df2
+```
+
+Ahora todos los residuos:
+
+```{r residuals_distribution2, fig.cap="Distribución de los Residuos", echo=FALSE, message=FALSE, warning=FALSE, fig.height=3.5}
+ggplot(valor_viviendas, aes(lm_mult_viviendas$residuals)) +
+  geom_histogram(bins = 40, colour = "white") +
+  labs(title = "Distribución de los Residuos del Modelo",
+         x = "Residuos", y = "Frecuencia") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+\newpage
+
+# Conclusiones
+
+El valor mediano de las viviendas en Boston se encuentra altamente explicado por el número de habitaciones promedio por vivienda y por el porcentaje de la población en el estatus más bajo, dejando claro que no sólo las características de las viviendas son importantes, sino que el entorno en el que se encuentran es igual de importante.
+
+Definitivamente, podríamos aplicar más tests a nuestro análisis y considerar la relevancia de mas variables, pero con lo que se ha realizado que clara la relación entre estas variables y qué tan fuerte esta es.
