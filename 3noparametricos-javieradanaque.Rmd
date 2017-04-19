@@ -1,0 +1,104 @@
+---
+title: "Modelos No Paramétricos"
+author: "Javier Adanaque"
+date: "17 de Abril, 2017"
+output:
+  pdf_document:
+    df_print: kable
+    number_sections: true
+abstract: "Se revisan, rápidamente, algunos modelos no paramétricos aprendidos en clase"
+fontsize: 12pt
+classoption: "a4paper"
+
+header-includes:
+- \usepackage[spanish]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(dplyr)
+#library(MASS)  # The Boston dataframe is the same as the one given in class
+```
+
+# Introducción
+
+El objetivo del presente documento es aplicar los métodos No Paramétricos aprendidos en clase. Para ello se está usando una base de datos con diferentes características de las viviendas y suburbios/ciudades en Boston, data otorgada en clase junto a otros datasets.
+
+El foco será en la aplicación de los métodos, sin dar mayor detalle sobre el marco teórico o utilidad.
+
+Nos concentraremos en conocer cómo se relaciona el valor de las viviendas en Boston con respecto al número de habitaciones.
+
+# Data
+
+Para el análisis se está usando la data `bostonvivienda.txt`, ubicada entre los datasets
+distribuidos para la clase.
+
+```{r data, warning=FALSE}
+valor_viviendas <- read.table("data/bostonvivienda.txt",
+                              header = TRUE, stringsAsFactors = FALSE)
+valor_viviendas[1:6, c(1:3, 6, 7, 10, 13, 14)]
+```
+
+Como se puede observar en las primeras seis observaciones (y algunas columnas), nos muestra diferentes características sobre los suburbios, incluido el valor medio de las viviendas en el suburbio (ver última columna).
+
+Descripción de variables:
+
+- `crim`: tasa de delincuencia per cápita por ciudad.
+- `zn`: proporción de suelo residencial dividido en zonas para lotes de más de 25,000 pies cuadrados.
+- `indus`: proporción de acres de negocios no minoristas por la ciudad.
+- `chas`: variable ficticia (dummy) Charles River (1 si sale de las vías fluviales; 0 en caso contrario).
+- `nox`: concentración de óxidos de nitrógeno (partes por 10 millones).
+- `rm`: número promedio de habitaciones por vivienda.
+- `edad`: proporción de unidades ocupadas por sus propietarios construidas antes de 1940.
+- `dis`: media ponderada de las distancias a cinco centros de empleo de Boston.
+- `rad`: Índice de la accesibilidad a las autopistas radiales.
+- `impuesto`: tasa de impuestos a la propiedad por el valor total por \$ 10,000.
+- `ptratio`: proporción de alumnos por profesor por ciudad.
+- `negro`: 1000(Bk - 0,63)2, donde Bk es la proporción de negros por la ciudad.
+- `lstat`: estatus más bajo de la población (por ciento).
+- `medv`: valor mediano de las viviendas ocupadas por sus propietarios en \$ 1000s.
+
+# Modelamiento con Métodos No Paramétricos
+
+## Regresorgrama
+
+```{r regresorgrama, fig.cap="Regresorgrama"}
+minimo=min(valor_viviendas[,6])  # Variable: "rm"
+maximo=max(valor_viviendas[,6])
+plot(valor_viviendas[, 6], valor_viviendas[, 14], col='tomato', pch=19,
+     xlab = "rm", ylab = "medv")
+particion=c(minimo, 4.2, 4.8, 5.2, 5.9, 6.2, 6.7, 7.2, 7.9, 8.2, maximo)
+n1=dim(valor_viviendas)
+n2=length(particion)
+s=rep(0,n2-1)
+x1=rep(0,2)
+y1=rep(0,2)
+
+for (j in 1:(n2-1)) {
+    suma=0
+    cont=0
+  for (i in 1:n1[1]) {
+    if (valor_viviendas[i,"rm"]>=particion[j] &
+        valor_viviendas[i,"rm"]<particion[j+1]) {
+      suma=suma+valor_viviendas[i,"medv"]
+      cont=cont+1
+    }
+  }
+  s[j]=suma/cont
+  x1[1]=particion[j]
+  x1[2]=particion[j+1]
+  y1[1]=s[j]
+  y1[2]=s[j]
+  lines(x1,y1,type="l",col="darkred")
+}
+
+for (j in 2:(n2-1)) {
+  
+  x1[1]=particion[j]
+  x1[2]=particion[j]
+  y1[1]=s[j]
+  y1[2]=s[j-1]
+  lines(x1,y1,type="l",col="darkred")
+}
+```
+
