@@ -102,3 +102,24 @@ for (j in 2:(n2-1)) {
 }
 ```
 
+\newpage
+
+## Running Means
+
+```{r running_means, fig.cap='Running Means with k = 30. La línea es más "suave." Ojo: la línea no se encuentra definida en los extremos.'}
+valor_viviendas <- valor_viviendas[order(valor_viviendas$rm), ]
+k=30
+n=dim(valor_viviendas)
+s=rep(0,n[1]-2*k)
+
+for (i in (k+1):(n[1]-k)) {
+  j=seq(i-k, i+k)
+  s[i]=mean(valor_viviendas[j,"medv"])
+}
+
+i = seq(k+1,n[1]-k)
+plot(valor_viviendas[, 6], valor_viviendas[, 14], col='tomato', pch=19,
+     xlab = "rm", ylab = "medv")
+lines(valor_viviendas[i,6],s[i],type = "s", col = "blue")
+```
+
