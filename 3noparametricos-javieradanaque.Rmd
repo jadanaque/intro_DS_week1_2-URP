@@ -123,6 +123,8 @@ plot(valor_viviendas[, 6], valor_viviendas[, 14], col='tomato', pch=19,
 lines(valor_viviendas[i,6],s[i],type = "s", col = "blue")
 ```
 
+\newpage
+
 ## Running Medians
 
 ```{r running_medians, fig.cap='Running Medians with k = 30. La línea es más "suave" aún; esto se debe a la menor influencia de los datos atípicos sobre nuestro estimado.'}
@@ -141,3 +143,26 @@ plot(valor_viviendas[, 6], valor_viviendas[, 14], col='tomato', pch=19,
 lines(valor_viviendas[i,6],s[i],type = "s", col = "blue")
 ```
 
+\newpage
+
+## Running Lines
+
+```{r running_lines, fig.cap='Running Lines with k = 30.'}
+k=30
+n <- dim(valor_viviendas)
+cont <- 0
+x1 <- rep(0,n[1]-2*k)
+y1 <- rep(0,n[1]-2*k)
+
+for (i in (k+1):(n[1]-k)) {
+  j=seq(i-k,i+k)
+  modelo <- lm(valor_viviendas[j, 14]~valor_viviendas[j, 6])
+  cont <- cont+1
+  x1[cont] <- valor_viviendas[i,6]
+  y1[cont] <- modelo$coefficients[1]+modelo$coefficients[2]*x1[cont]
+}
+
+plot(valor_viviendas[, 6], valor_viviendas[, 14], col='tomato', pch=19,
+     xlab = "rm", ylab = "medv")
+lines(x1, y1, type = "s", col = "blue")
+```
